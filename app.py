@@ -15,9 +15,20 @@ st.title("🧪 AI Chemical Compatibility & Hazard Screening")
 st.caption("Screening aid only. Always check official safety data sheets.")
 
 if not db_ready():
-    st.error("The database chem.db is missing or empty. In the terminal, run: "
-             "python migrate_to_db.py")
+    try:
+        from migrate_to_db import main as migrate_database
+
+        migrate_database()
+
+    except Exception as e:
+        st.error("Database initialization failed.")
+        st.exception(e)
+        st.stop()
+
+if not db_ready():
+    st.error("Database initialization was unsuccessful.")
     st.stop()
+    
 
 ICON = {"CRITICAL": "🟥", "HIGH": "🟧", "MEDIUM": "🟨", "LOW": "🟩"}
 ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]

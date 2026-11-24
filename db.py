@@ -11,7 +11,9 @@ from reactivity import get_reactivity
 from bridge import get_smiles, describe_fragment
 from chemkeys import key_fragments
 
-DB_FILE = "chem.db"
+from pathlib import Path
+
+DB_FILE = str(Path(__file__).resolve().parent / "chem.db")
 ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
 EXTRA_SCHEMA = """

@@ -8,7 +8,10 @@ from group_rules import GROUP_RULES
 from reactions import REACTIONS
 from reaction_engine import TEMPLATES
 
-DB_FILE = "chem.db"
+from pathlib import Path
+
+DB_FILE = str(Path(__file__).resolve().parent / "chem.db")
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS chemicals (
