@@ -28,11 +28,11 @@ if not db_ready():
 if not db_ready():
     st.error("Database initialization was unsuccessful.")
     st.stop()
-    
+
 
 ICON = {"CRITICAL": "🟥", "HIGH": "🟧", "MEDIUM": "🟨", "LOW": "🟩"}
 ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-SHOWN_STATUSES = ("reviewed", "ai_checked", "needs_review")
+SHOWN_STATUSES = ("reviewed", "ai_checked")
 
 transport_rows = []   # collected for the summary table at the end
 

@@ -8,7 +8,9 @@ A person's decision (reviewed / rejected) is never overwritten by new AI output.
 import sqlite3
 import time
 
-DB_FILE = "chem.db"
+from pathlib import Path
+
+DB_FILE = str(Path(__file__).resolve().parent / "chem.db")
 ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
 SCHEMA = """
