@@ -1,0 +1,11 @@
+﻿name,smarts,byproduct,conditions,severity,needs_oxidizer
+Fischer esterification,[CX3:1](=[O:2])[OX2H1:3].[CX4:4][OX2H1:5]>>[C:1](=[O:2])[O:5][C:4],water,"Acid catalyst (e.g. sulfuric acid), heat; reversible.",LOW,0
+Amide formation from acyl chloride,"[NX3;H2,H1;!$(NC=O):1].[CX3:2](=[O:3])[Cl]>>[N:1][C:2]=[O:3]",hydrogen chloride (corrosive gas),"Fast and exothermic, usually with a base to absorb HCl.",MEDIUM,0
+Ester formation from acyl chloride,[OX2H1:1][CX4:2].[CX3:3](=[O:4])[Cl]>>[C:3](=[O:4])[O:1][C:2],hydrogen chloride (corrosive gas),Fast and exothermic; releases HCl.,MEDIUM,0
+Imine formation (condensation),[CX3;!$(C(=O)[!#6]):1](=[O:2])[#6:5].[NX3;H2;!$(NC=O):3]>>[C:1](=[N:3])[#6:5],water,"Mild acid catalysis, removal of water helps.",LOW,0
+Saponification (ester hydrolysis by hydroxide),[CX3:1](=[O:2])[OX2:3][CX4:4].[OH-]>>[C:1](=[O:2])[O-].[C:4][O:3],none (an alcohol and a carboxylate salt form),"Aqueous hydroxide, often warmed; exothermic.",MEDIUM,0
+Bromine addition to an alkene,[CX3:1]=[CX3:2].[Br:3][Br:4]>>[C:1]([Br:3])[C:2][Br:4],none,Room temperature; bromine is toxic and corrosive.,HIGH,0
+Aromatic nitration,[cH1:1].[N+:2](=[O:3])([O-:4])[OX2H1:5]>>[c:1][N+:2](=[O:3])[O-:4],water,"Concentrated nitric acid with sulfuric acid. Strongly exothermic; runaway and explosion risk, nitro products can be explosive.",CRITICAL,0
+Oxidation of a primary alcohol to an aldehyde,[CH2X4:1][OX2H1:2]>>[CH1X3:1]=[O:2],reduced form of the oxidizer,Needs an oxidizing agent; exothermic. Can go further to the acid.,HIGH,1
+Oxidation of a secondary alcohol to a ketone,[CX4H1:1]([#6:5])([#6:6])[OX2H1:2]>>[C:1]([#6:5])([#6:6])=[O:2],reduced form of the oxidizer,Needs an oxidizing agent; exothermic.,HIGH,1
+Oxidation of an aldehyde to a carboxylic acid,[CX3H1:1](=[O:2])[#6:5]>>[C:1](=[O:2])([#6:5])[OH],reduced form of the oxidizer,Needs an oxidizing agent; exothermic.,HIGH,1

@@ -1,0 +1,26 @@
+﻿reaction_key,name,lookup,state,note
+acid__cyanide__1,Hydrogen cyanide,hydrogen cyanide,gas,Extremely toxic and flammable. Can be fatal in minutes.
+acid__hypochlorite__1,Hypochlorous acid,hypochlorous acid,aqueous,"Strong oxidizer and irritant. Decomposes, releasing chlorine."
+acid__hypochlorite__2,Chlorine,chlorine,gas,Highly toxic gas. Severe lung damage; oxidizer.
+acid__strong_base__1,A salt (depends on the acid),,aqueous,"Usually low hazard, but check the specific salt."
+acid__strong_base__1,Water (hot),,liquid,Mixture can boil and spatter corrosive liquid.
+acid__water_reactive__1,Hydrogen,hydrogen,gas,Extremely flammable; likely to ignite.
+ammonia__hypochlorite__1,Monochloramine,chloramine,gas/vapor,"Toxic irritant gas. Damages eyes, throat and lungs."
+ammonia__hypochlorite__1,Sodium hydroxide,sodium hydroxide,aqueous,Corrosive. Causes skin burns and eye damage.
+ammonia__hypochlorite__2,Dichloramine,,gas/vapor,"Toxic, strongly irritating to the respiratory tract."
+ammonia__hypochlorite__2,Nitrogen trichloride,nitrogen trichloride,oily liquid/vapor,"Toxic and can explode, including from light, heat or shock."
+ammonia__hypochlorite__3,Hydrazine,hydrazine,liquid/vapor,"Toxic, corrosive, flammable and a suspected carcinogen."
+cyanide__oxidizing_acid__1,Hydrogen cyanide,hydrogen cyanide,gas,Extremely toxic and flammable. Can be fatal in minutes.
+cyanide__oxidizing_acid__1,Nitrogen dioxide,nitrogen dioxide,gas,"Brown, highly toxic gas. Causes delayed lung damage."
+hypochlorite__organic_flammable__1,Acetaldehyde,acetaldehyde,liquid/vapor,"Extremely flammable, irritant, suspected carcinogen."
+hypochlorite__organic_flammable__2,Chloroform,chloroform,liquid/vapor,"Toxic, harms liver and kidneys, suspected carcinogen."
+hypochlorite__organic_flammable__2,Sodium hydroxide,sodium hydroxide,aqueous,Corrosive. Causes skin burns and eye damage.
+hypochlorite__oxidizer__1,Oxygen,,gas,"Not toxic, but the rapid release causes foaming, heat and splashing, and it feeds fires."
+hypochlorite__oxidizer__1,Sodium chloride,,aqueous,Low hazard.
+organic_flammable__oxidizer__1,Carbon monoxide,carbon monoxide,gas,Toxic gas that prevents blood carrying oxygen.
+organic_flammable__oxidizer__1,Carbon dioxide,,gas,Asphyxiant in enclosed spaces.
+organic_flammable__oxidizer__2,Organic peroxides,,solid/liquid,"Can be shock, heat or friction sensitive and explode."
+organic_flammable__oxidizing_acid__1,Nitrogen dioxide,nitrogen dioxide,gas,"Brown, highly toxic gas. Causes delayed lung damage."
+organic_flammable__oxidizing_acid__1,Nitrated organic compounds,,varies,Some are unstable or explosive.
+water__water_reactive__1,Hydrogen,hydrogen,gas,Extremely flammable; can ignite from the heat released.
+water__water_reactive__1,Sodium hydroxide,sodium hydroxide,aqueous,Corrosive. Causes skin burns and eye damage.

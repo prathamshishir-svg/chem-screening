@@ -1,0 +1,21 @@
+﻿prefix_a,prefix_b,level,message
+"acids,",cyanides,CRITICAL,"Releases hydrogen cyanide, a highly toxic gas."
+"acids, strong",sulfides,HIGH,"Releases toxic, flammable hydrogen sulfide gas."
+"acids, strong","bases, strong",MEDIUM,Strong heat release; splashing and boiling risk.
+"acids, strong","bases, weak",MEDIUM,Heat release on neutralization.
+"acids, strong",amines,MEDIUM,Heat release on neutralization.
+"acids, strong","reducing agents, strong",HIGH,Violent reaction; may release flammable hydrogen.
+"acids, strong oxidizing",alcohols,CRITICAL,Violent reaction; fire or explosion risk.
+"acids, strong oxidizing",hydrocarbons,CRITICAL,Violent reaction; fire or explosion risk.
+"oxidizing agents, strong","reducing agents, strong",CRITICAL,Fire or explosion risk.
+"oxidizing agents, strong",alcohols,HIGH,Fire or explosion risk.
+"oxidizing agents, strong",ketones,HIGH,Fire or explosion risk.
+"oxidizing agents, strong",aldehydes,HIGH,Fire or explosion risk.
+"oxidizing agents, strong",ethers,HIGH,Fire or explosion risk; peroxide hazards.
+"oxidizing agents, strong",hydrocarbons,HIGH,Fire or explosion risk.
+"oxidizing agents, strong",combustible and flammable,HIGH,Fire or explosion risk.
+"oxidizing agents, strong",amines,HIGH,Violent reaction; fire risk.
+"oxidizing agents, strong",cyanides,HIGH,Violent reaction; toxic gas risk.
+water reactive,water and aqueous,HIGH,"Reacts with water; heat, fire or toxic gas risk."
+"metals, alkali",water and aqueous,CRITICAL,Releases flammable hydrogen and heat; fire risk.
+"metals, alkali","acids,",CRITICAL,Violent reaction; flammable hydrogen released.

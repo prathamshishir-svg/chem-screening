@@ -1,0 +1,12 @@
+﻿family_a,family_b,level,message
+acid,cyanide,CRITICAL,"Releases hydrogen cyanide, a highly toxic gas."
+acid,hypochlorite,HIGH,Releases toxic chlorine gas.
+acid,strong_base,MEDIUM,Strong heat release; splashing and boiling risk.
+acid,water_reactive,CRITICAL,Violent reaction; flammable hydrogen released.
+ammonia,hypochlorite,HIGH,Produces toxic chloramine gas.
+cyanide,oxidizing_acid,CRITICAL,Releases toxic gas; violent reaction.
+hypochlorite,organic_flammable,HIGH,Heat and toxic by-products; fire risk.
+hypochlorite,oxidizer,MEDIUM,Rapid oxygen release and heat.
+organic_flammable,oxidizer,HIGH,Fire or explosion risk.
+organic_flammable,oxidizing_acid,CRITICAL,"Violent reaction, fire or explosion risk."
+water,water_reactive,CRITICAL,Releases flammable hydrogen and heat; fire risk.

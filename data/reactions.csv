@@ -1,0 +1,17 @@
+﻿key,family_a,family_b,title,when,equation,severity
+acid__cyanide__1,acid,cyanide,Release of hydrogen cyanide,Any acid contacting a cyanide salt; faster with stronger acid.,NaCN + HCl -> HCN + NaCl,CRITICAL
+acid__hypochlorite__1,acid,hypochlorite,Release of hypochlorous acid,Mild acids (e.g. vinegar); the acid lowers the pH.,NaOCl + H-A -> HOCl + Na-A,MEDIUM
+acid__hypochlorite__2,acid,hypochlorite,Release of chlorine gas,Stronger acids or lower pH (e.g. hydrochloric acid).,NaOCl + 2 HCl -> Cl2 + NaCl + H2O,HIGH
+acid__strong_base__1,acid,strong_base,Neutralization,Any mixing; heat grows with concentration and quantity.,H-A + NaOH -> Na-A + H2O + heat,MEDIUM
+acid__water_reactive__1,acid,water_reactive,Violent reaction with acid,Any contact; more violent than with water.,2 Na + 2 H-A -> 2 Na-A + H2 + heat,CRITICAL
+ammonia__hypochlorite__1,ammonia,hypochlorite,Formation of monochloramine,Any mixing; fastest in neutral to alkaline solution.,NaOCl + NH3 -> NH2Cl + NaOH,HIGH
+ammonia__hypochlorite__2,ammonia,hypochlorite,Further chlorination (excess hypochlorite),"Hypochlorite in excess, especially at lower pH.",NH2Cl + NaOCl -> NHCl2 + NaOH ; NHCl2 + NaOCl -> NCl3 + NaOH,CRITICAL
+ammonia__hypochlorite__3,ammonia,hypochlorite,Hydrazine formation (excess ammonia),Ammonia in excess and alkaline conditions.,NH2Cl + NH3 + NaOH -> N2H4 + NaCl + H2O,HIGH
+cyanide__oxidizing_acid__1,cyanide,oxidizing_acid,Hydrogen cyanide and nitrogen oxides,Nitric acid with a cyanide salt; violent.,NaCN + HNO3 -> HCN + NaNO3 (plus NOx from side reactions),CRITICAL
+hypochlorite__organic_flammable__1,hypochlorite,organic_flammable,Oxidation of the organic liquid,Alcohols such as ethanol; exothermic.,CH3CH2OH + NaOCl -> CH3CHO + NaCl + H2O,HIGH
+hypochlorite__organic_flammable__2,hypochlorite,organic_flammable,Haloform reaction,"Acetone (and, more slowly, ethanol) with excess hypochlorite.",3 NaOCl + CH3COCH3 -> CHCl3 + CH3COONa + 2 NaOH,HIGH
+hypochlorite__oxidizer__1,hypochlorite,oxidizer,Oxygen release,Any mixing with hydrogen peroxide.,NaOCl + H2O2 -> NaCl + H2O + O2,MEDIUM
+organic_flammable__oxidizer__1,organic_flammable,oxidizer,Rapid oxidation of the organic liquid,Concentrated oxidizer; heat or contamination makes it worse.,Organic + oxidizer -> CO2 + H2O + CO + heat,HIGH
+organic_flammable__oxidizer__2,organic_flammable,oxidizer,Unstable peroxide-type compounds,"Strong oxidizer with certain organics, often with acid present.",Organic + H2O2 -> organic peroxides (varies),CRITICAL
+organic_flammable__oxidizing_acid__1,organic_flammable,oxidizing_acid,Oxidation and nitration,"Concentrated nitric acid; violent, often with a delay.",Organic + HNO3 -> oxidized/nitrated organics + NO2 + H2O,CRITICAL
+water__water_reactive__1,water,water_reactive,Reaction with water,Any contact with water or moisture.,2 Na + 2 H2O -> 2 NaOH + H2 + heat,CRITICAL
