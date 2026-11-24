@@ -1,5 +1,7 @@
 import streamlit as st
-from db import (db_ready, get_chemical, get_product, check_pair, check_groups,
+import sqlite3
+from pathlib import Path
+from db import (DB_FILE, db_ready, get_chemical, get_product, check_pair, check_groups,
                 family_of, get_reactions, clear_saved_lookups, get_transport,
                 find_recorded)
 from engine import predict
@@ -24,6 +26,26 @@ if not db_ready():
         st.error("Database initialization failed.")
         st.exception(e)
         st.stop()
+        # Check whether ADR transport data is already imported
+con = sqlite3.connect(DB_FILE)
+
+try:
+    try:
+        count = con.execute(
+            "SELECT COUNT(*) FROM transport_hazards"
+        ).fetchone()[0]
+    except sqlite3.OperationalError:
+        count = 0
+finally:
+    con.close()
+if count == 0:
+    adr_file = Path(__file__).resolve().parent / "adr.csv"
+
+    if adr_file.exists():
+        from import_transport import main as import_adr
+        import_adr(str(adr_file))
+    else:
+        st.warning("ADR transport dataset is unavailable.")
 
 if not db_ready():
     st.error("Database initialization was unsuccessful.")

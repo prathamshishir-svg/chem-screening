@@ -12,7 +12,9 @@ import re
 import sqlite3
 import sys
 
-DB_FILE = "chem.db"
+from pathlib import Path
+
+DB_FILE = str(Path(__file__).resolve().parent / "chem.db")
 CAS_RE = re.compile(r"\b\d{2,7}-\d{2}-\d\b")
 
 CLASS_MEANINGS = [
@@ -117,11 +119,12 @@ def detect_columns(headers):
     return {k: v for k, v in cols.items() if v}
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        return
-    path = sys.argv[1]
+def main(path=None):
+    if path is None:
+        if len(sys.argv) < 2:
+            print(__doc__)
+            return
+        path = sys.argv[1]
     headers, rows = read_rows(path)
     if not headers:
         print("The file looks empty.")
