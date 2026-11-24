@@ -240,11 +240,11 @@ if st.button("Run screening", type="primary"):
         st.info(glance + ". Scroll down for the details of each.")
     elif entries:
         best = worst_level(entries)
-        st.warning("**Result pending review.** The database entries below have not been reviewed "
+        st.caption("**Result pending review.** The database entries below have not been reviewed "
                    "by a person yet, so no final level is given. Highest estimated level among "
                    f"them: {best or 'unknown'}.")
     else:
-        st.warning("No reaction for this pair could be found in the database yet. "
+        st.info("No reaction for this pair could be found in the database yet. "
                    "This does NOT mean the pair is safe. Check the safety data sheets, and "
                    "try again later.")
 
