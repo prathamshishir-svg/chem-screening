@@ -1,0 +1,8 @@
+{
+  "release": "6a615626b4b8a07c4b14fba90b7cc6d342e8c3a8",
+  "url": "https://huggingface.co/datasets/prathamshishir-chem/chem-screening-database/resolve/6a615626b4b8a07c4b14fba90b7cc6d342e8c3a8/chem.db",
+  "sha256": "D9A4BBECB65996383A14A0EA2CA5E25631C3833E4CC06B4C2320947B154DA1B4",
+  "size_bytes": 5696905216,
+  "license_review": "confirmed_by_project_owner",
+  "artifact_integrity_review": "verified_download_sha256_sqlite_and_counts"
+}
