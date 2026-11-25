@@ -1,16 +1,20 @@
 import streamlit as st
 import sqlite3
 from pathlib import Path
+from rdkit import Chem
 from db import (DB_FILE, db_ready, get_chemical, get_product, check_pair, check_groups,
                 family_of, get_reactions, clear_saved_lookups, get_transport,
-                find_recorded)
+                find_recorded, find_epa_toxval_records, ReactionSearchError)
 from engine import predict
 from severity import adjust_severity
 from fallback import find_mentions, precautions
 from aliases import resolve
+from chemkeys import split_source_references
 from ai_explain import formulas_match
 from pair_store import key_for, get_pair_reactions, pair_has_rows, worst_level
 from pair_fill import fill_pair
+import timing
+from migrations import migrate_database
 
 st.set_page_config(page_title="Chemical Hazard Screening", page_icon="🧪")
 st.title("🧪 AI Chemical Compatibility & Hazard Screening")
@@ -18,15 +22,22 @@ st.caption("Screening aid only. Always check official safety data sheets.")
 
 if not db_ready():
     try:
-        from migrate_to_db import main as migrate_database
+        from migrate_to_db import main as migrate_legacy_database
 
-        migrate_database()
+        migrate_legacy_database()
 
     except Exception as e:
         st.error("Database initialization failed.")
         st.exception(e)
         st.stop()
-        # Check whether ADR transport data is already imported
+
+try:
+    migrate_database(DB_FILE)
+except Exception as e:
+    st.error("Database schema migration failed.")
+    st.exception(e)
+    st.stop()
+
 con = sqlite3.connect(DB_FILE)
 
 try:
@@ -86,6 +97,96 @@ def show_transport(cas, substance, role):
         })
 
 
+def render_epa_toxval_evidence(chemical_name, result):
+    """Show source-backed EPA toxicity evidence separately from GHS and compatibility."""
+    st.markdown("**EPA toxicity evidence (ToxValDB v9.7.0)**")
+    if not result["total"]:
+        st.write(f"No EPA ToxValDB v9.7.0 toxicity records found for {chemical_name}.")
+        return
+    st.caption(
+        f"{result['total']:,} exact {result['match_basis']} match(es); "
+        f"showing {len(result['records']):,}. These are toxicity evidence, not GHS classifications "
+        "or compatibility predictions. No GHS class or compatibility severity is inferred from them."
+    )
+    for record in result["records"]:
+        endpoint = record.get("toxval_type") or record.get("toxval_subtype") or "Toxicity endpoint"
+        numeric = record.get("toxval_numeric_raw")
+        if numeric in (None, "", "-"):
+            numeric = "Not reported"
+        qualifier = record.get("toxval_numeric_qualifier")
+        units = record.get("toxval_units")
+        reported_value = (f"{qualifier or ''}{numeric}" + (f" {units}" if units and units != "-" else ""))
+        header = f"{endpoint}: {reported_value} — {record.get('source') or 'source not reported'}"
+        with st.expander(header):
+            st.write(f"**EPA ToxValDB v{record.get('release_version')}:** {record.get('toxval_id')}")
+            st.write(f"**Endpoint:** {endpoint}")
+            if record.get("toxval_subtype") and record.get("toxval_subtype") != "-":
+                st.write(f"**Endpoint subtype:** {record['toxval_subtype']}")
+            if record.get("toxval_type_supercategory"):
+                st.write(f"**Endpoint category:** {record['toxval_type_supercategory']}")
+            st.write(f"**Reported value:** {reported_value}")
+            original_value = record.get("toxval_numeric_original_raw")
+            if original_value not in (None, "", "-") and original_value != numeric:
+                st.write(f"**Original source value:** {record.get('toxval_numeric_qualifier_original') or ''}"
+                         f"{original_value} {record.get('toxval_units_original') or ''}")
+            experimental = record.get("experimental_record")
+            if not experimental or experimental == "-":
+                category = "Not reported"
+            elif str(experimental).strip().lower() == "experimental":
+                category = "Experimental record (EPA source flag)"
+            elif "not experimental" in str(experimental).strip().lower():
+                category = "Non-experimental EPA value (source flag: not experimental)"
+            else:
+                category = f"EPA record flag: {experimental} (category not inferred)"
+            st.write(f"**Record category:** {category}")
+            if record.get("species_common") or record.get("species_latin") or record.get("species_original"):
+                species = record.get("species_common") or record.get("species_latin") or record.get("species_original")
+                if record.get("species_latin") and species != record.get("species_latin"):
+                    species += f" ({record['species_latin']})"
+                st.write(f"**Species:** {species}")
+            for label, field in (("Study type", "study_type"), ("Study duration", "study_duration_class"),
+                                 ("Exposure route", "exposure_route"), ("Exposure method", "exposure_method"),
+                                 ("Effect", "toxicological_effect"), ("Population", "population"),
+                                 ("Year", "year"), ("Risk assessment class", "risk_assessment_class")):
+                value = record.get(field)
+                if value and value != "-":
+                    st.write(f"**{label}:** {value}")
+            if record.get("qc_status"):
+                if str(record["qc_status"]).lower().startswith("fail"):
+                    st.warning(f"EPA source QC status: {record['qc_status']}")
+                else:
+                    st.write(f"**EPA source QC status:** {record['qc_status']}")
+            if record.get("source_url"):
+                st.write(f"**Source URL:** {record['source_url']}")
+            if record.get("subsource_url") and record["subsource_url"] != record.get("source_url"):
+                st.write(f"**Subsource URL:** {record['subsource_url']}")
+            for ref in record.get("references", []):
+                st.markdown("**Record reference**")
+                title = ref.get("title") or ref.get("long_ref") or ref.get("document_name")
+                if title:
+                    st.write(title)
+                if ref.get("author") or ref.get("year"):
+                    st.write(" ".join(value for value in (ref.get("author"), ref.get("year")) if value))
+                if ref.get("doi"):
+                    st.write(f"DOI: {ref['doi']}")
+                if ref.get("url"):
+                    st.write(f"Reference URL: {ref['url']}")
+                if ref.get("guideline") and ref["guideline"] != "-":
+                    st.write(f"Guideline: {ref['guideline']}")
+
+
+def render_product_epa_evidence(name, product):
+    """Show EPA toxicity separately for a product with a resolvable identity."""
+    if not product.get("cid") and not product.get("cas"):
+        with st.expander(f"EPA toxicity evidence for {name}"):
+            st.write("EPA lookup was not attempted because this product has no verified chemical "
+                     "record or CAS number.")
+        return
+    result = find_epa_toxval_records(name, casrn=product.get("cas"), limit=10)
+    with st.expander(f"EPA toxicity evidence for {name}"):
+        render_epa_toxval_evidence(name, result)
+
+
 def render_pair_entries(entries, expand_first):
     """Reaction entries stored in the database for this exact pair."""
     st.subheader("Reactions in the database for this pair")
@@ -136,6 +237,7 @@ def render_pair_entries(entries, expand_first):
                         st.write("- " + h)
                 else:
                     st.caption("No official hazard statements found. This is not proof of safety.")
+                render_product_epa_evidence(prod["name"], prod)
                 show_transport(prod["cas"], p["name"], "Product (database entry)")
 
 
@@ -147,9 +249,8 @@ with st.sidebar:
         clear_saved_lookups()
         st.success("Cleared.")
     st.divider()
-    n_recorded = st.slider("Recorded reactions to show", 1, 10, 3)
-    show_extra = st.checkbox("Also show patent records and general analysis for pairs "
-                             "that have no curated rule", value=False)
+    n_recorded = st.slider("Recorded reactions to show", 1, 100, 3)
+    show_extra = st.checkbox("Show general analysis when no curated rule is available", value=False)
 
 
 def chemical_form(label, key):
@@ -175,27 +276,72 @@ with right:
 temp = st.number_input("Temperature (°C)", value=25.0)
 
 if st.button("Run screening", type="primary"):
+    screening_started = timing.start_timer()
     if not chem_a["name"] or not chem_b["name"]:
         st.warning("Please enter both chemical names.")
+        timing.log_duration("Total screening", screening_started)
         st.stop()
 
     with st.spinner("Looking up chemicals..."):
-        info_a = get_chemical(resolve(chem_a["name"]))
-        info_b = get_chemical(resolve(chem_b["name"]))
+        lookup_started = timing.start_timer()
+        try:
+            info_a = get_chemical(resolve(chem_a["name"]))
+        finally:
+            timing.log_duration("Chemical identification and cache lookup (input A)",
+                                lookup_started)
+        lookup_started = timing.start_timer()
+        try:
+            info_b = get_chemical(resolve(chem_b["name"]))
+        finally:
+            timing.log_duration("Chemical identification and cache lookup (input B)",
+                                lookup_started)
 
     if not info_a or not info_b:
         st.error("Could not look up one of the chemicals. Check the spelling, "
                  "or the data service may be busy. Wait a minute and try again.")
+        for chemical, info in ((chem_a, info_a), (chem_b, info_b)):
+            casrn = info.get("cas") if info else None
+            evidence = find_epa_toxval_records(chemical["name"], casrn=casrn, limit=25)
+            with st.expander(f"EPA toxicity evidence for {chemical['name']}", expanded=True):
+                render_epa_toxval_evidence(chemical["name"], evidence)
+        timing.log_duration("Total screening", screening_started)
         st.stop()
 
     chem_a["cas"] = info_a["cas"]
     chem_b["cas"] = info_b["cas"]
+    structure_valid = {}
+    for label, chemical, info in (("Chemical 1", chem_a, info_a), ("Chemical 2", chem_b, info_b)):
+        try:
+            valid = bool(info.get("smiles") and Chem.MolFromSmiles(info["smiles"]) is not None)
+        except Exception:
+            valid = False
+        structure_valid[label] = valid
+        if not valid:
+            st.error(
+                f"{label} ({chemical['name']}) was identified, but a structure usable by RDKit "
+                "could not be verified. Two-input reaction structure searches and template "
+                "predictions are skipped; this is different from a search with zero matches."
+            )
+            if info.get("structure_source_smiles"):
+                st.caption(f"Source {info.get('structure_source_property') or 'SMILES'} "
+                           f"from {info.get('structure_source') or 'reported source'} was retained "
+                           "for traceability, but RDKit rejected it.")
+        elif info.get("structure_source"):
+            source_detail = info.get("structure_source_detail")
+            provenance = (f"; retrieved {info['structure_retrieved_at']}"
+                          if info.get("structure_retrieved_at") else "")
+            st.caption(
+                f"{label} structure: RDKit-valid; source {info['structure_source']}"
+                f"{(' (' + info['structure_identifier_type'] + ' ' + str(info['structure_identifier']) + ')') if info.get('structure_identifier') else ''}"
+                f"{provenance}. {source_detail or ''}"
+            )
     react_a, react_b = info_a["reactivity"], info_b["reactivity"]
     groups_a = react_a.get("Reactive Group", [])
     groups_b = react_b.get("Reactive Group", [])
 
     with st.spinner("Predicting reactions..."):
-        predicted = predict(info_a["smiles"], info_b["smiles"], groups_a, groups_b)
+        predicted = (predict(info_a["smiles"], info_b["smiles"], groups_a, groups_b)
+                     if all(structure_valid.values()) else [])
 
     base_level, message = check_pair(chem_a["cas"], chem_b["cas"])
     source = "Curated rule"
@@ -219,8 +365,16 @@ if st.button("Run screening", type="primary"):
     mentions_a = find_mentions(react_a, chem_b["name"])
     mentions_b = find_mentions(react_b, chem_a["name"])
 
-    recorded, rec_total = find_recorded(info_a["smiles"], info_b["smiles"], n_recorded)
-    rec_count_text = f"{rec_total}+" if rec_total >= 1000 else str(rec_total)
+    recorded_error = None
+    if all(structure_valid.values()):
+        try:
+            recorded, rec_total = find_recorded(info_a["smiles"], info_b["smiles"], n_recorded)
+        except ReactionSearchError as exc:
+            recorded, rec_total, recorded_error = [], None, exc
+    else:
+        recorded, rec_total = [], None
+    rec_count_text = (f"{rec_total:,}" if rec_total is not None
+                      else "not searched (structure validation failed)")
 
     # ---------- entries stored for this exact pair; create them in the background if missing ----------
     pair_a = {"name": resolve(chem_a["name"]), "cas": info_a["cas"], "formula": info_a["formula"],
@@ -228,7 +382,7 @@ if st.button("Run screening", type="primary"):
     pair_b = {"name": resolve(chem_b["name"]), "cas": info_b["cas"], "formula": info_b["formula"],
               "hazards": info_b["hazards"], "groups": groups_b}
     key_a, key_b = key_for(pair_a), key_for(pair_b)
-    if not rules_cover and not pair_has_rows(key_a, key_b):
+    if all(structure_valid.values()) and not rules_cover and not pair_has_rows(key_a, key_b):
         with st.spinner("Searching the database (a new pair can take up to a minute)..."):
             fill_pair(pair_a, pair_b, {"curated": [], "predicted": [],
                                        "recorded_count": rec_total})
@@ -258,7 +412,7 @@ if st.button("Run screening", type="primary"):
         st.caption(f"Basis for this result: {source}")
         glance = (f"**Results found for this pair:**  {len(reactions)} curated  |  "
                   f"{len(predicted)} predicted  |  {len(entries)} database entries  |  "
-                  f"{rec_count_text} recorded (patent literature)")
+                  f"{rec_count_text} recorded (source datasets)")
         st.info(glance + ". Scroll down for the details of each.")
     elif entries:
         best = worst_level(entries)
@@ -297,9 +451,13 @@ if st.button("Run screening", type="primary"):
                                 st.caption("Official hazard statements:")
                                 for h in hz[:6]:
                                     st.write("- " + h)
+                            elif not prod.get("cid"):
+                                st.warning("This product could not be resolved to a verified "
+                                           "chemical record; hazard information is unavailable.")
                             else:
                                 st.caption("No official hazard statements retrieved. "
                                            "This is not proof of safety.")
+                            render_product_epa_evidence(prod["name"], prod)
                             show_transport(prod["cas"], p["name"], "Product (curated)")
         else:
             st.info("No curated reaction entry for this pair.")
@@ -330,27 +488,62 @@ if st.button("Run screening", type="primary"):
                             if d["hazards"]:
                                 for h in d["hazards"][:6]:
                                     st.write("- " + h)
+                            elif not d.get("cid"):
+                                st.warning("This product could not be resolved to a verified "
+                                           "chemical record; hazard information is unavailable.")
                             else:
                                 st.write("No official hazard statements found. "
                                          "This is not proof of safety.")
+                            render_product_epa_evidence(d["name"], d)
                             show_transport(d["cas"], d["name"], "Product (predicted)")
         else:
-            st.write("No reaction template matched the structures of these two chemicals. "
-                     "This does NOT mean they are safe together.")
+            if not all(structure_valid.values()):
+                st.info("Reaction templates were not searched because an input structure "
+                        "could not be verified.")
+            else:
+                st.write("No reaction template matched the structures of these two chemicals. "
+                         "This does NOT mean they are safe together.")
 
-    # ---------- Recorded reactions (patent literature) ----------
-    if show_details:
-        st.subheader("Recorded reactions (patent literature)")
+    # ---------- Recorded reaction-source records ----------
+    if show_details or recorded or rec_total is None:
+        st.subheader("Recorded reaction records")
         if recorded:
-            st.write(f"{rec_count_text} recorded reaction(s) contain both chemicals as reactants "
-                     f"or reagents. Showing the {len(recorded)} simplest, newest first. "
-                     "This shows they were used together, not necessarily that they react "
-                     "with each other.")
+            st.write(f"{rec_count_text} matching source record(s); showing {len(recorded)} "
+                     "with source-aware allocation. A record containing both inputs does not "
+                     "prove that the inputs reacted with each other. Equivalent reactions from "
+                     "different source records are not merged and may overlap.")
             for i, rc in enumerate(recorded, start=1):
-                title = f"Record {i}: {rc['patent'] or 'patent'}, {rc['year'] or 'year unknown'}"
+                is_ord_mined = rc.get("source") == "ORD-mined"
+                if is_ord_mined:
+                    title = f"ORD mined record {rc.get('source_record_id') or i}"
+                else:
+                    title = f"Record {i}: {rc['patent'] or 'patent'}, {rc['year'] or 'year unknown'}"
                 if rc["yield"]:
                     title += f"  (reported yield {rc['yield']})"
                 with st.expander(title, expanded=(i == 1 and not reactions and not predicted)):
+                    if is_ord_mined:
+                        if rc.get("is_mined"):
+                            st.caption(
+                                "ORD source marks this record as mined from reaction SMILES. "
+                                "It is not independent experimental verification; input role labels "
+                                "do not prove each input was consumed."
+                            )
+                        else:
+                            st.caption(
+                                "ORD source record. The dataset source and participant roles are "
+                                "preserved; this record is not by itself proof that the inputs react."
+                            )
+                        actual_dois, other_references = split_source_references(rc.get("source_doi"))
+                        for doi in actual_dois:
+                            st.write(f"Source DOI: {doi}")
+                        for reference in other_references:
+                            st.write(f"ORD source reference identifier (not a DOI): {reference}")
+                        st.write(f"ORD dataset: {rc.get('dataset_id') or 'unknown'}")
+                    if rc.get("evidence_relation"):
+                        st.write(f"**Input role evidence:** {rc['evidence_relation']}")
+                    if rc.get("input_roles"):
+                        st.write(f"Chemical 1 role(s): {', '.join(rc['input_roles'][0]) or 'not resolved'}")
+                        st.write(f"Chemical 2 role(s): {', '.join(rc['input_roles'][1]) or 'not resolved'}")
                     st.markdown("**Reaction (reactants > reagents > products)**")
                     st.code(f"{rc['reactants']}  >  {rc['reagents'] or '-'}  >  {rc['products']}",
                             language=None)
@@ -363,16 +556,28 @@ if st.button("Run screening", type="primary"):
                         if d["hazards"]:
                             for h in d["hazards"][:4]:
                                 st.write("- " + h)
+                        elif not d.get("cid"):
+                            st.warning("This product could not be resolved to a verified "
+                                       "chemical record; hazard information is unavailable.")
                         else:
                             st.write("No official hazard statements found. "
                                      "This is not proof of safety.")
+                        render_product_epa_evidence(d["name"], d)
                         show_transport(d["cas"], d["name"], "Product (recorded)")
-            st.caption("Source: text-mined US patent reactions (D. Lowe, 2017). Yields and "
-                       "conditions are as extracted from patent text and may contain errors.")
+            if any(row.get("source") == "USPTO" for row in recorded):
+                st.caption("USPTO records are text-mined from patent literature (D. Lowe, 2017). "
+                           "Extracted yields and conditions may contain errors.")
         else:
-            st.write("No recorded reaction contains both of these chemicals. Either the "
-                     "patent data is not imported, or this pair does not appear in it. "
-                     "This does NOT mean they are safe together or that they cannot react.")
+            if recorded_error:
+                st.error(f"Recorded reaction search was not run: {recorded_error.input_label} "
+                         "has no verified RDKit-usable structure.")
+            elif rec_total is None:
+                st.info("Recorded reaction search was skipped because at least one input structure "
+                        "could not be verified. This is not a zero-result search.")
+            else:
+                st.write("No matching record was found in the currently imported reaction datasets. "
+                         "Dataset coverage is incomplete; absence does not mean the chemicals "
+                         "are safe together or cannot react.")
 
     # ---------- General analysis ----------
     if show_details and not reactions:
@@ -413,13 +618,24 @@ if st.button("Run screening", type="primary"):
 
     st.subheader("Chemical data")
     for chem, info, react in ((chem_a, info_a, react_a), (chem_b, info_b, react_b)):
-        with st.expander(f"{chem['name']}  |  {info['formula']}  |  CAS {info['cas']}"):
+        cas_label = info["cas"] or "not reported"
+        with st.expander(f"{chem['name']}  |  {info['formula']}  |  CAS {cas_label}"):
             st.markdown("**Hazard statements**")
+            structure_to_show = info.get("smiles") or info.get("structure_source_smiles")
+            if structure_to_show:
+                st.markdown("**Structure (source SMILES)**")
+                st.code(structure_to_show, language=None)
+                if info.get("structure_source_property"):
+                    st.caption(f"Property: {info['structure_source_property']}; "
+                               "source representation is shown as retrieved, not locally normalized.")
             if info["hazards"]:
                 for h in info["hazards"]:
                     st.write("- " + h)
             else:
                 st.write("No hazard statements found. This is not proof of safety.")
+
+            evidence = find_epa_toxval_records(chem["name"], casrn=info.get("cas"), limit=25)
+            render_epa_toxval_evidence(chem["name"], evidence)
 
             st.markdown("**Reactivity information**")
             if react:
@@ -436,9 +652,17 @@ if st.button("Run screening", type="primary"):
         st.write("Chemical identity and hazard data are compiled from public "
                  "chemical databases. Open the records below to verify.")
         for chem, info in ((chem_a, info_a), (chem_b, info_b)):
-            st.markdown(
-                f"- {chem['name']}: "
-                f"[PubChem record](https://pubchem.ncbi.nlm.nih.gov/compound/{info['cid']})")
+            if info.get("cid"):
+                st.markdown(
+                    f"- {chem['name']}: "
+                    f"[PubChem record](https://pubchem.ncbi.nlm.nih.gov/compound/{info['cid']})")
+            elif info.get("data_source") == "ORD structure-only record":
+                st.markdown(
+                    f"- {chem['name']}: ORD structure {info.get('source_record_id')} "
+                    f"([dataset](https://github.com/open-reaction-database/ord-data)); "
+                    "name, CAS number, and hazard record unavailable from this source row.")
+            else:
+                st.write(f"- {chem['name']}: no linked external chemical record")
 
     st.subheader("Transport hazard table (ADR / UNECE)")
     unique_rows, seen = [], set()
@@ -477,3 +701,4 @@ if st.button("Run screening", type="primary"):
     warnings.append("Verify everything against official safety data sheets.")
     for w in warnings:
         st.write("- " + w)
+    timing.log_duration("Total screening", screening_started)

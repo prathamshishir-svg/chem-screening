@@ -9,6 +9,7 @@ import os
 import re
 import sqlite3
 import time
+import timing
 
 DB_FILE = "chem.db"
 PROMPT_VERSION = "1"
@@ -124,10 +125,14 @@ def _call_model(prompt, model, api_key):
     from google import genai
     from google.genai import types
     client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=model, contents=prompt,
-        config=types.GenerateContentConfig(system_instruction=SYSTEM, temperature=0.2,
-                                           response_mime_type="application/json"))
+    config = types.GenerateContentConfig(system_instruction=SYSTEM, temperature=0.2,
+                                         response_mime_type="application/json")
+    request_started = timing.start_timer()
+    try:
+        response = client.models.generate_content(
+            model=model, contents=prompt, config=config)
+    finally:
+        timing.log_duration("Gemini API request", request_started)
     return response.text
 
 
@@ -225,29 +230,34 @@ def get_ai_analysis(a, b, context):
     prompt = build_prompt(a, b, context)
     api_key = get_api_key()
     last_error = None
-    for model in models_to_try():
-        for attempt in range(2):
-            try:
-                text = _call_model(prompt, model, api_key)
-                answer = clean_answer(_extract_json(text))
-                con = _db()
-                con.execute("INSERT OR REPLACE INTO ai_answers (key, model, answer_json, created_at) "
-                            "VALUES (?,?,?,?)", (key, model, json.dumps(answer),
-                                                 time.strftime("%Y-%m-%d %H:%M:%S")))
-                con.commit()
-                con.close()
-                return answer, {"error": "", "cached": False, "model": model}
-            except ValueError as e:                      # bad JSON from the model
-                last_error = e
-                break
-            except Exception as e:
-                last_error = e
-                if _is_not_found(e):
-                    break                                # try the next model name
-                if _is_busy(e) and attempt == 0:
-                    time.sleep(6)
-                    continue
-                return None, {"error": _friendly_error(e), "cached": False, "model": model}
+    for model_index, model in enumerate(models_to_try()):
+        fallback_started = timing.start_timer() if model_index else None
+        try:
+            for attempt in range(2):
+                try:
+                    text = _call_model(prompt, model, api_key)
+                    answer = clean_answer(_extract_json(text))
+                    con = _db()
+                    con.execute("INSERT OR REPLACE INTO ai_answers (key, model, answer_json, created_at) "
+                                "VALUES (?,?,?,?)", (key, model, json.dumps(answer),
+                                                     time.strftime("%Y-%m-%d %H:%M:%S")))
+                    con.commit()
+                    con.close()
+                    return answer, {"error": "", "cached": False, "model": model}
+                except ValueError as e:                      # bad JSON from the model
+                    last_error = e
+                    break
+                except Exception as e:
+                    last_error = e
+                    if _is_not_found(e):
+                        break                                # try the next model name
+                    if _is_busy(e) and attempt == 0:
+                        timing.timed_sleep(6, "Gemini retry wait")
+                        continue
+                    return None, {"error": _friendly_error(e), "cached": False, "model": model}
+        finally:
+            if model_index:
+                timing.log_duration("Gemini fallback model elapsed (inclusive)", fallback_started)
     if isinstance(last_error, ValueError):
         return None, {"error": "The AI returned an answer in an unreadable format. "
                                "Try again in a moment.", "cached": False, "model": ""}

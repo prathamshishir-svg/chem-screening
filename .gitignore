@@ -10,3 +10,16 @@ chem_backup.db
 *.db-wal
 *.db-shm
 chem.db
+# Local database backups and staging databases are never source artifacts.
+*.db
+*.sqlite
+*.sqlite3
+# Downloaded/imported data files are kept outside Git.
+*.parquet
+# Local backups, logs, and credentials.
+*.bak
+*.backup
+backups/
+.streamlit/secrets.toml
+*.pem
+*.key

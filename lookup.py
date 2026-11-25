@@ -2,9 +2,18 @@ import re
 import time
 import requests
 import pubchempy as pcp
+import timing
 
 
 def get_ghs_hazards(cid, retries=2):
+    started = timing.start_timer()
+    try:
+        return _get_ghs_hazards(cid, retries)
+    finally:
+        timing.log_duration("PubChem GHS lookup", started)
+
+
+def _get_ghs_hazards(cid, retries=2):
     """Fetch GHS hazard statements for a compound from PubChem."""
     url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
     data = None
@@ -44,6 +53,14 @@ def get_ghs_hazards(cid, retries=2):
 
 
 def lookup_chemical(name, retries=3):
+    started = timing.start_timer()
+    try:
+        return _lookup_chemical(name, retries)
+    finally:
+        timing.log_duration("PubChem name lookup (inclusive of GHS)", started)
+
+
+def _lookup_chemical(name, retries=3):
     """Look up a chemical by name. Retries on temporary PubChem errors.
     Returns a dict, or None if not found or PubChem stays unavailable."""
     for attempt in range(retries):

@@ -2,8 +2,17 @@
 into exactly the same text keys."""
 from rdkit import Chem
 from rdkit import RDLogger
+import re
 
 RDLogger.DisableLog("rdApp.*")
+_DOI_RE = re.compile(r"10\.\d{4,9}/\S+", re.IGNORECASE)
+
+
+def split_source_references(value):
+    """Separate valid DOI-shaped source citations from opaque source identifiers."""
+    references = [item.strip() for item in (value or "").split(";") if item.strip()]
+    dois = [item for item in references if _DOI_RE.fullmatch(item)]
+    return dois, [item for item in references if item not in dois]
 
 
 def canon_fragment(smiles):
