@@ -39,6 +39,7 @@ from pair_fill import fill_pair
 import timing
 from migrations import migrate_database
 from evidence_display import deduplicate_hazard_statements, recorded_reaction_display
+from epa_diagnostics import collect_epa_diagnostics
 
 st.set_page_config(page_title="Chemical Hazard Screening", page_icon="🧪")
 if _cloud_database_error:
@@ -225,6 +226,20 @@ def render_epa_toxval_evidence(chemical_name, result):
                     st.write(f"Guideline: {ref['guideline']}")
 
 
+def render_atrazine_epa_diagnostic(chemical_name, casrn, result, *, limit=25):
+    """Show temporary read-only diagnostics only for an Atrazine lookup."""
+    if (str(chemical_name or "").strip().casefold() != "atrazine"
+            and str(casrn or "").strip() != "1912-24-9"):
+        return
+    diagnostic = collect_epa_diagnostics(
+        DB_FILE,
+        {"identifier": chemical_name, "casrn": casrn, "limit": limit},
+        result,
+    )
+    with st.expander("Developer diagnostic — EPA ToxValDB (Atrazine)", expanded=False):
+        st.json(diagnostic)
+
+
 def render_product_epa_evidence(name, product):
     """Show EPA toxicity separately for a product with a resolvable identity."""
     if not product.get("cid") and not product.get("cas"):
@@ -350,6 +365,7 @@ if st.button("Run screening", type="primary"):
             evidence = find_epa_toxval_records(chemical["name"], casrn=casrn, limit=25)
             with st.expander(f"EPA toxicity evidence for {chemical['name']}", expanded=True):
                 render_epa_toxval_evidence(chemical["name"], evidence)
+            render_atrazine_epa_diagnostic(chemical["name"], casrn, evidence)
         timing.log_duration("Total screening", screening_started)
         st.stop()
 
@@ -674,6 +690,7 @@ if st.button("Run screening", type="primary"):
 
             evidence = find_epa_toxval_records(chem["name"], casrn=info.get("cas"), limit=25)
             render_epa_toxval_evidence(chem["name"], evidence)
+            render_atrazine_epa_diagnostic(chem["name"], info.get("cas"), evidence)
 
             st.markdown("**Reactivity information**")
             if react:
