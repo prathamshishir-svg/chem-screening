@@ -1,8 +1,9 @@
 """Turns everyday names (bleach, vinegar...) into proper chemical names,
 using the aliases table in chem.db."""
 import sqlite3
+from database_path import get_database_path
 
-DB_FILE = "chem.db"
+DB_FILE = get_database_path()
 
 
 def resolve(name):

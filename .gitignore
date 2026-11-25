@@ -34,3 +34,6 @@ backups/
 .streamlit/secrets.toml
 *.pem
 *.key
+# Local database distribution artifacts are uploaded to GitHub Releases only.
+.deployment_artifacts/
+.chem_database_cache/

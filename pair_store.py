@@ -9,8 +9,9 @@ import sqlite3
 import time
 
 from pathlib import Path
+from database_path import get_database_path
 
-DB_FILE = str(Path(__file__).resolve().parent / "chem.db")
+DB_FILE = get_database_path()
 ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
 SCHEMA = """

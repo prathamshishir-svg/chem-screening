@@ -10,8 +10,9 @@ import re
 import sqlite3
 import time
 import timing
+from database_path import get_database_path
 
-DB_FILE = "chem.db"
+DB_FILE = get_database_path()
 PROMPT_VERSION = "1"
 DEFAULT_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.8-flash"]
 LEVELS = {"LOW", "MEDIUM", "HIGH", "CRITICAL", "UNKNOWN"}
